@@ -1,0 +1,5 @@
+---
+- name: apply roles 
+  hosts: 172.16.30.230
+  roles: 
+   - campaignMgr

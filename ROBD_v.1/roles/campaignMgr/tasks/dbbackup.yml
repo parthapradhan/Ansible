@@ -1,0 +1,16 @@
+---
+#CampaignManager DB backup
+- name: Fetch databases
+  shell: "mysql -uroot -p{{ vault_root_passwd }} -e 'show databases'"
+  register: databases
+
+- name: Dump multiple databases
+  mysql_db:
+   state: dump
+   login_user: root
+   login_password: "{{ vault_root_passwd }}"
+   config_file: /etc/my.cnf
+   name: replica_cm_6_0_4_0
+   target: /tmp/{{ item }}.sql
+  with_items:
+    - "{{ databases.stdout_lines|difference(exclude_db) }}"

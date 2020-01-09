@@ -1,0 +1,3 @@
+---
+# tasks file for campaignMgr
+- import_tasks: dbbackup.yml

@@ -1,0 +1,15 @@
+[local]
+127.0.0.1 ansible_connection=local
+
+[ivr]
+omvsg75.onmobile.com
+
+[staging]
+staging75.onmobile.com
+
+[staging2]
+172.16.30.230
+
+[machine:children]
+staging
+staging2
