@@ -1,10 +1,10 @@
 ---
 #CampaignManager DB backup
-- name: Fetch databases
+- name: List databases
   shell: "mysql -uroot -p{{ vault_root_passwd }} -e 'show databases'"
   register: databases
 
-- name: Dump multiple databases
+- name: Dump  databases
   mysql_db:
    state: dump
    login_user: root
@@ -12,5 +12,13 @@
    config_file: /etc/my.cnf
    name: replica_cm_6_0_4_0
    target: /tmp/{{ item }}.sql
+  with_items:
+    - "{{ databases.stdout_lines|difference(exclude_db) }}"
+
+- name: Fetch data from Remote Server
+  fetch:
+   src: "/tmp/{{ item }}.sql"
+   dest: /var/tmp/
+   flat: yes
   with_items:
     - "{{ databases.stdout_lines|difference(exclude_db) }}"
