@@ -1,0 +1,78 @@
+---
+
+- name: ROBD BackUP and Deploy
+  become: yes
+  hosts: staging2
+
+  vars:
+   exclude_db:
+   - "Database"
+   - "information_schema"
+   - "performance_schema"
+   - "mysql"
+   - "cm_6_0_4_0"
+   - "cam3"
+   - "gprs_offer"
+   - "mca"
+   - "pkg_dpi_integration"
+   - "robd_3_2_5"
+   - "service_activator"
+   - "test"
+   - "testmodule"
+
+  tasks:
+   - name: Ansible check directory exists example.
+     stat:
+      path: /var/backups/ROBD/{{ backup_dir }}_{{ ansible_date_time.date }}
+     register: files_exist
+
+   - debug:
+      msg: "It is a directory"
+     when: files_exist.stat.exists and files_exist.stat.isdir
+
+   - name: Create Backup directory 
+     file:
+      path: /var/backups/ROBD/{{ backup_dir }}_{{ ansible_date_time.date }}
+      mode: "u=rwx,g=rwx,o=rwx"
+      state: directory
+
+   - name: Fetch databases
+     shell: 'mysql -uroot -p{{ vault_root_passwd }} -e "show databases"'
+     register: databases
+
+   - name: Dump multiple databases
+     mysql_db:
+      state: dump
+      login_user: root
+      login_password: "{{ vault_root_passwd }}"
+      config_file: /etc/my.cnf
+      name: replica_cm_6_0_4_0
+      target: "/var/backups/ROBD/{{ backup_dir }}_{{ ansible_date_time.date }}/{{ item }}.sql"
+     with_items:
+       - "{{ databases.stdout_lines|difference(exclude_db) }}"
+
+   - name: Fetch data from Remote Server
+     fetch:
+      src: "/var/backups/ROBD/{{ backup_dir }}_{{ ansible_date_time.date }}/{{ item }}.sql"
+      dest: /var/tmp/
+      flat: yes
+     with_items:
+       - "{{ databases.stdout_lines|difference(exclude_db) }}"
+
+   - name: Backup ROBD lib and property files
+     shell: "cp -av {{ item }} /var/backups/ROBD/{{ backup_dir }}_{{ ansible_date_time.date }}/"
+     with_items:
+       - '/opt/ozone/bin/jlib/ROBD/ROBD'
+       - '/opt/ozone/bin/properties'
+       - '/opt/ozone/bin/jlib/sovxmlbase'
+
+   - name: Copy files from Release path
+     copy:
+      src: "/var/lib/docker/volumes/jenkins_home/workspace/{{ build_name }}/ROBD/build/ROBD.war"
+      dest: "/opt/ozone/bin/jlib/ROBD/"
+      remote_src: no
+     notify: Restart O3ROBD Service
+    
+  handlers:
+  - name: Restart O3ROBD Service
+    shell: "ps -ef | grep -i [O]3ROBD|awk '{print $2}'|while read process_id; do kill -9 $process_id; done"
