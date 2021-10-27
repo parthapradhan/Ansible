@@ -1,0 +1,48 @@
+---
+- name: Jenkins OBD Build Trigger
+  gather_facts: no 
+  hosts: local
+
+  vars:
+   uname: tony
+   password: onmobile
+   hostname: "172.16.30.231:8088"
+
+  tasks:
+   - name: Crumb Token
+     uri:
+      url: 'http://{{ hostname }}/crumbIssuer/api/xml?xpath=concat(//crumbRequestField,":",//crumb)'
+      user: "{{ uname }}"
+      password: "{{ password }}"
+      force_basic_auth: yes
+      return_content: yes
+      method: GET
+     register: token
+     until: token.status == 200
+
+   - debug:
+      msg: "token is {{ token }}"
+
+   - name: Set crumb response in variable
+     set_fact: 
+      crumb_response: "{{ token.content.split(':')[1] }}"
+    
+   - debug:
+      msg: "split is {{ crumb_response }}"
+
+   - name: Invoke Build URI
+     uri:
+       url: "http://{{ hostname }}/job/ROBDBuild/buildWithParameters?version=CM_6.0.8.0&BACKUP_DIR=ROBD_6.0.8.0_crumbjenkins2&WS=ROBDBuild"
+       method: POST
+       user: "{{ uname }}"
+       password: "{{ password }}"
+       force_basic_auth: yes
+       return_content: yes
+       status_code: 200,201
+       headers:
+         Jenkins-Crumb: "{{ crumb_response }}"
+     register: json_response
+
+   - name: debug jenkins request result
+     debug:
+       msg: "jsonresponse is {{ json_response }}"
