@@ -1,0 +1,7 @@
+[local]
+127.0.0.1  ansible_python_interpreter=/usr/bin/python3
+
+[ec2]
+10.0.1.54
+10.0.1.48
+10.0.1.84
