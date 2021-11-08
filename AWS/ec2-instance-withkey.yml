@@ -1,0 +1,48 @@
+---
+ - name: EC2 instance creation using new keypait and existing SG
+   hosts: localhost
+   connection: local
+   gather_facts: False
+   tags: provisioning
+   vars:
+     keypair: ansibleec2key
+     instancetype: t2.micro
+     region: us-east-1
+     hosts_file: /var/ansible/hosts
+    
+   tasks: 
+    - name: Create EC2 keypair
+      ec2_key:
+        name: "{{ keypair }}"
+        region: "{{ region }}"
+      register: ec2key
+
+    - name: Save private key (.pem file for ec2 access)
+      copy:
+        content: "{{ec2key.key.private_key}}" 
+        dest: /var/aws-key/{{ keypair }}.pem 
+        mode: 0600
+      when: ec2key.changed
+
+    - name: EC2 Instance Creation
+      ec2:
+        key_name: "{{ keypair }}"
+        instance_type: "{{ instancetype }}"
+        image: ami-01cc34ab2709337aa
+        wait: yes
+        group: SG-tonyAWSVPC
+        count: 1
+        vpc_subnet_id: subnet-06cd3f5a9a8aa29e5
+        assign_public_ip: yes
+        region: "{{ region }}"
+        instance_tags:
+          Name: ansiwebserver1
+      register: ec2
+
+    - name: Save Private IP of EC2 into inventory 
+      lineinfile:
+        dest: "{{ hosts_file }}"
+        insertafter: '\[ec2\]'
+        line: "{{item.private_ip}}"
+      with_items: 
+        - "{{ ec2.instances }}"

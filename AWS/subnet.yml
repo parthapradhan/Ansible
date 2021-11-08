@@ -1,0 +1,32 @@
+---
+ - name: Create Subnet and associate with VPC
+   hosts: localhost
+   gather_facts: False
+   connection: local
+
+   vars:
+     vpc_cidr: 10.0.0.0/16
+     vpc_name: "AnsibleVPC"
+     igw_name: "AnsibleIGW"
+     region: eu-central-1
+
+   tasks:
+ 
+     - name : Associate Subnet to vpc_cidr
+       ec2_vpc_subnet:
+          state: present
+          vpc_id: "vpc-07c9f3d373f919014"
+          region: "{{ region }}"
+          az: "{{ item.AZ }}"
+          cidr: "{{ item.cidr }}"
+          resource_tags:
+             Name: "{{ item.subnet_name }}"
+       with_items:
+          - { AZ: "eu-central-1a", cidr: "10.0.0.0/24", subnet_name: "PublicSubnetA"}
+          - { AZ: "eu-central-1b", cidr: "10.0.1.0/24", subnet_name: "PublicSubnetB"}
+          - { AZ: "eu-central-1a", cidr: "10.0.16.0/20", subnet_name: "PrivateSubnetA"}
+          - { AZ: "eu-central-1b", cidr: "10.0.32.0/20", subnet_name: "PrivateSubnetB"}
+       register: subnet
+
+     - debug:
+         msg: "subnet created is {{ subnet }}"

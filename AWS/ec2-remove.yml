@@ -1,0 +1,26 @@
+---
+ - name: Terminate EC2 Instance and remove key
+   hosts: localhost
+   connection: local
+   gather_facts: False
+
+   vars:
+     instance_ids:
+       - 'i-0176c3b3ded3de7dc'     #Replace with Ec2 Instance id
+     region: us-east-1
+     keypair_name: ansibleec2key
+
+
+   tasks:
+     - name: Remove EC2 instance
+       ec2:
+         instance_ids: '{{instance_ids}}'
+         region: '{{region}}'
+         state: absent
+         wait: true 
+
+     - name: Remove EC2 Key
+       ec2_key:
+         name: '{{keypair_name}}'
+         state: absent
+         region: '{{region}}'

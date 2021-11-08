@@ -1,0 +1,24 @@
+---
+ - name: Keypair creation
+   hosts: localhost
+   connection: local
+   gather_facts: False
+   vars:
+     region: us-east-1
+
+   tasks:
+    - name: Create EC2 keypair
+      ec2_key:
+        name: ansibleec2key
+        region: "{{ region }}"
+      register: ec2key
+
+    - debug:
+        var: ec2key
+
+    - name: Save private key (.pem file for ec2 access)
+      copy:
+        content: "{{ec2key.key.private_key}}"
+        dest: /var/aws-key/ansibleec2key.pem
+        mode: 0600
+      when: ec2key.changed

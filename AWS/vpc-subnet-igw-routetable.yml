@@ -1,0 +1,90 @@
+---
+ - name: Create VPC and associate with IGW
+   hosts: localhost
+   gather_facts: False
+   connection: local
+
+   vars:
+     vpc_cidr: 10.0.0.0/16
+     vpc_name: "AnsibleVPC"
+     igw_name: "AnsibleIGW"
+     route_name1: "PublicRouteTable"
+     route_name2: "PrivateRouteTable"
+     region: eu-central-1
+
+   tasks:
+     - name: VPC Creation
+       ec2_vpc_net:
+          name: "{{ vpc_name }}"
+          cidr_block: "{{ vpc_cidr }}"
+          region: "{{ region }}"
+          state: present
+       register: vpc
+
+     - debug:
+          msg: "VPC id is {{ vpc.vpc.id }}"
+
+
+     - name : Create Public & Private Subnets and Associate them to VPC  
+       ec2_vpc_subnet:
+          state: present
+          vpc_id: "{{ vpc.vpc.id }}"
+          region: "{{ region }}"
+          az: "{{ item.AZ }}"
+          cidr: "{{ item.cidr }}"
+          resource_tags:
+             Name: "{{ item.subnet_name }}"
+       with_items:
+          - { AZ: "eu-central-1a", cidr: "10.0.0.0/24", subnet_name: "PublicSubnetA"}
+          - { AZ: "eu-central-1b", cidr: "10.0.1.0/24", subnet_name: "PublicSubnetB"}
+          - { AZ: "eu-central-1a", cidr: "10.0.16.0/20", subnet_name: "PrivateSubnetA"}
+          - { AZ: "eu-central-1b", cidr: "10.0.32.0/20", subnet_name: "PrivateSubnetB"}
+       register: subnet
+
+     - debug:
+         msg: "subnet created is {{ subnet }}"
+
+     - name: create IGW
+       ec2_vpc_igw:
+          vpc_id: "{{ vpc.vpc.id }}"
+          region: "{{ region }}"
+          state: present
+          tags:
+            Name: "{{ igw_name }}"
+       register: igw
+
+     - debug:
+         var: igw
+
+     - name: Create Public Route table - route the traffic to the IGW via the route table
+       ec2_vpc_route_table:
+          vpc_id: "{{ vpc.vpc.id }}"
+          region: "{{ region }}"
+          subnets:
+             - "10.0.0.0/24"
+             - "10.0.1.0/24"
+          routes:
+             - dest: 0.0.0.0/0
+               gateway_id: "{{ igw.gateway_id }}"
+          tags:
+            Name: "{{ route_name1 }}"
+       register: route1
+
+     - debug:
+         var: route1 
+
+
+     - name: Create Private Route Table
+       ec2_vpc_route_table:
+          vpc_id: "{{ vpc.vpc.id }}"
+          region: "{{ region }}"
+          subnets:
+             - "10.0.16.0/20"
+             - "10.0.32.0/20"
+          tags:
+            Name: "{{ route_name2 }}"
+       register: route2
+
+     - debug:
+         var: route2
+ 
